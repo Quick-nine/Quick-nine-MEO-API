@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quicknine MEO — API自動採点ツール</title>
+<style>
+  :root{
+    --paper:#FAFAF8;
+    --ink:#1C2333;
+    --ink-soft:#5B6478;
+    --line:#DEDDD6;
+    --accent:#2B6CB0;
+    --accent-soft:#E7F0FA;
+    --good:#1F7A4D;
+    --good-bg:#E8F5EE;
+    --bad:#B23B3B;
+    --bad-bg:#FBEAEA;
+    --warn:#9A6B0A;
+    --warn-bg:#FBF3DF;
+    --mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: "Hiragino Kaku Gothic ProN", "Noto Sans JP", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--sans);
+    line-height:1.6;
+    padding:32px 24px 80px;
+  }
+  .wrap{max-width:980px;margin:0 auto;}
+
+  header{margin-bottom:28px;border-bottom:2px solid var(--ink);padding-bottom:16px;}
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--accent);
+    margin:0 0 6px;
+  }
+  h1{font-size:24px;margin:0 0 6px;letter-spacing:-.01em;}
+  .sub{color:var(--ink-soft);font-size:14px;margin:0;}
+
+  section{margin-bottom:28px;}
+  .card{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:20px 22px;
+  }
+  .card h2{
+    font-size:13px;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    color:var(--ink-soft);
+    margin:0 0 14px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .step-badge{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:20px;height:20px;
+    border-radius:50%;
+    background:var(--ink);
+    color:#fff;
+    font-size:11px;
+    font-family:var(--mono);
+  }
+
+  label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;}
+  .key-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  input[type=password], input[type=text]{
+    flex:1;
+    min-width:240px;
+    font-family:var(--mono);
+    font-size:13px;
+    padding:10px 12px;
+    border:1px solid var(--line);
+    border-radius:6px;
+    background:var(--paper);
+    color:var(--ink);
+  }
+  input:focus{outline:2px solid var(--accent);outline-offset:1px;}
+
+  button{
+    font-family:var(--sans);
+    font-size:13px;
+    font-weight:600;
+    padding:10px 16px;
+    border-radius:6px;
+    border:1px solid transparent;
+    cursor:pointer;
+    transition:opacity .15s;
+  }
+  button:hover{opacity:.85;}
+  button:disabled{opacity:.4;cursor:not-allowed;}
+  .btn-primary{background:var(--ink);color:#fff;}
+  .btn-accent{background:var(--accent);color:#fff;}
+  .btn-ghost{background:transparent;border-color:var(--line);color:var(--ink);}
+  .btn-sm{padding:6px 10px;font-size:12px;font-weight:500;}
+
+  .toggle-row{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:var(--ink-soft);}
+  .toggle-row input{width:auto;flex:none;}
+
+  .checklist{list-style:none;margin:0;padding:0;font-size:13px;color:var(--ink-soft);}
+  .checklist li{padding:3px 0;display:flex;gap:8px;}
+  .checklist li::before{content:"✓";color:var(--good);font-family:var(--mono);}
+
+  .status-line{
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--ink-soft);
+    margin-top:12px;
+    min-height:18px;
+  }
+  .status-line.err{color:var(--bad);}
+  .status-line.ok{color:var(--good);}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:4px;}
+  th, td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;}
+  th{
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.05em;
+    color:var(--ink-soft);
+    font-weight:600;
+    white-space:nowrap;
+  }
+  td.store{font-weight:600;white-space:nowrap;}
+  td.num{font-family:var(--mono);text-align:center;white-space:nowrap;}
+  .pt{
+    display:inline-block;
+    min-width:28px;
+    padding:2px 6px;
+    border-radius:4px;
+    font-family:var(--mono);
+    font-weight:600;
+    font-size:12px;
+  }
+  .pt.full{background:var(--good-bg);color:var(--good);}
+  .pt.zero{background:var(--bad-bg);color:var(--bad);}
+  .pt.mid{background:var(--warn-bg);color:var(--warn);}
+  .flag{
+    display:inline-block;
+    font-size:11px;
+    background:var(--warn-bg);
+    color:var(--warn);
+    padding:2px 6px;
+    border-radius:4px;
+    margin:1px 3px 1px 0;
+    font-family:var(--sans);
+  }
+  .raw{font-size:11px;color:var(--ink-soft);font-family:var(--mono);}
+
+  .paste-grid{display:grid;grid-template-columns:repeat(auto-fit, minmax(150px,1fr));gap:12px;margin-top:14px;}
+  .paste-col{border:1px solid var(--line);border-radius:8px;padding:12px;background:var(--paper);}
+  .paste-col .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+  .paste-col .label{font-family:var(--mono);font-size:12px;font-weight:700;}
+  .paste-col .sub{font-size:11px;color:var(--ink-soft);margin:0 0 8px;}
+  .paste-col pre{
+    font-family:var(--mono);
+    font-size:12px;
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:8px;
+    margin:0 0 8px;
+    white-space:pre;
+    line-height:1.5;
+  }
+
+  .empty{color:var(--ink-soft);font-size:13px;padding:20px 0;text-align:center;}
+  .foot-note{font-size:12px;color:var(--ink-soft);margin-top:10px;}
+  code{background:var(--accent-soft);padding:1px 5px;border-radius:4px;font-family:var(--mono);font-size:12px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">Quicknine / MEO採点シート・モードA</p>
+    <h1>API自動採点ツール</h1>
+    <p class="sub">P1・P5・P6・R1・R2 の5項目を、Google Places のデータから毎月ワンクリックで取得・採点します。</p>
+  </header>
+
+  <section class="card">
+    <h2><span class="step-badge">1</span>APIキー</h2>
+    <label for="apiKey">Google Cloud で発行した API キー（AIzaSy…）</label>
+    <div class="key-row">
+      <input type="password" id="apiKey" placeholder="AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX">
+      <button class="btn-ghost btn-sm" id="toggleKey" type="button">表示</button>
+      <button class="btn-accent" id="saveKey" type="button">保存</button>
+    </div>
+    <div class="toggle-row">
+      <input type="checkbox" id="rememberKey" checked>
+      <label for="rememberKey" style="margin:0;">このブラウザにだけ保存する（このPC以外には送信・共有されません）</label>
+    </div>
+    <p class="foot-note">
+      このツールが正しく動くには、Google Cloud Console で <code>Places API</code>・<code>Places API (New)</code>・<code>Maps JavaScript API</code> の3つが有効になっている必要があります。まだの場合は先にライブラリから有効化してください。
+    </p>
+    <div class="status-line" id="keyStatus"></div>
+  </section>
+
+  <section class="card">
+    <h2><span class="step-badge">2</span>データ取得</h2>
+    <p class="sub" style="margin-top:-6px;">登録済み11店舗を対象に、Google Places から最新データを取得して自動採点します。</p>
+    <button class="btn-primary" id="fetchBtn" type="button">11店舗分のデータを取得する</button>
+    <div class="status-line" id="fetchStatus"></div>
+  </section>
+
+  <section class="card" id="resultsCard" style="display:none;">
+    <h2><span class="step-badge">3</span>採点結果</h2>
+    <div style="overflow-x:auto;">
+      <table id="resultsTable">
+        <thead>
+          <tr>
+            <th>店舗名</th>
+            <th>P1<br>カテゴリ</th>
+            <th>P5<br>営業時間</th>
+            <th>P6<br>リンク</th>
+            <th>R1<br>口コミ件数</th>
+            <th>R2<br>平均星</th>
+            <th>確認事項</th>
+          </tr>
+        </thead>
+        <tbody id="resultsBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card" id="pasteCard" style="display:none;">
+    <h2><span class="step-badge">4</span>採点入力シートへ貼り付け</h2>
+    <p class="sub" style="margin-top:-6px;">
+      「採点入力」シートの8〜18行目、各列の先頭セルをクリックしてから対応する列をコピー＆ペーストしてください（列ごとに1回ずつ）。
+    </p>
+    <div class="paste-grid" id="pasteGrid"></div>
+  </section>
+
+  <div class="empty" id="emptyState">まだデータを取得していません。APIキーを保存してから「データ取得」を押してください。</div>
+
+</div>
+
+<script>
+const STORES = [
+  { row: 8,  name: "Quicknine 清澄白河店",                 placeId: "ChIJo5ZZEZeJGGARmVvy4y0-qks" },
+  { row: 9,  name: "Quicknine 誠屋等々力店",                 placeId: "ChIJf-VKLZLWcYURwu9CiGuFQSM" },
+  { row: 10, name: "Quicknine バンビクリーニング上板橋南口店", placeId: "ChIJg6mqe0CJGGARUIRksvw_s4g" },
+  { row: 11, name: "Quicknine チューブパワーズめじろ台南口店", placeId: "ChIJ521tFyodGWAR9E5ETm8aS0M" },
+  { row: 12, name: "Quicknine 堀越クリーニング本店",           placeId: "ChIJc7QGPPqZGGARfEuk35lross" },
+  { row: 13, name: "Quicknine 加納ママショップ行徳店",         placeId: "ChIJcVdg-zCHGGARlVOPhBQcTt8" },
+  { row: 14, name: "Quicknine おさきセンチュリープラザ店",     placeId: "ChIJIfDxwhxlAGARE3XeN3G9H2I" },
+  { row: 15, name: "Quicknine VANクリーニングサニーアクシスいの店", placeId: "ChIJ86pxVwojTjURNo_nF92uAz4" },
+  { row: 16, name: "Quicknine 太陽舎A-MAX一宮店",             placeId: "ChIJq22Jih8cTjURrGtWTsZktcY" },
+  { row: 17, name: "Quicknine きょくとう博多駅前4丁目店",       placeId: "ChIJq99t6iCRQTURM2bXsOtejrI" },
+  { row: 18, name: "Quicknine きょくとう えきマチ姪浜店",       placeId: "ChIJHztQ9EOTQTURHdAt-GpBnyI" },
+];
+
+const CATEGORY_OK = ["laundry"]; // メインカテゴリとして許容する Places types
+
+const $ = (id) => document.getElementById(id);
+
+// ---------- APIキーの保存・復元 ----------
+// このファイルはダウンロードしてブラウザで直接開く単体ファイルとして使うため、
+// ブラウザ自体のlocalStorageに保存する（このPC・このブラウザだけに残り、他の人やAnthropicには送信されない）。
+const STORAGE_KEY = "quicknine_places_api_key";
+
+function loadSavedKey(){
+  try{
+    const saved = window.localStorage.getItem(STORAGE_KEY);
+    if(saved){
+      $("apiKey").value = saved;
+      $("keyStatus").textContent = "保存済みのキーを読み込みました。";
+      $("keyStatus").className = "status-line ok";
+    }
+  }catch(e){
+    // localStorageが使えない環境（file://を厳しく制限するブラウザなど）。何もしない。
+  }
+}
+$("saveKey").addEventListener("click", () => {
+  const key = $("apiKey").value.trim();
+  if(!key){
+    $("keyStatus").textContent = "APIキーを入力してください。";
+    $("keyStatus").className = "status-line err";
+    return;
+  }
+  if(!$("rememberKey").checked){
+    try{ window.localStorage.removeItem(STORAGE_KEY); }catch(e){}
+    $("keyStatus").textContent = "保存はスキップしました（このセッションのみ有効）。";
+    $("keyStatus").className = "status-line ok";
+    return;
+  }
+  try{
+    window.localStorage.setItem(STORAGE_KEY, key);
+    $("keyStatus").textContent = "保存しました。次回このファイルを開いたときも自動で読み込まれます。";
+    $("keyStatus").className = "status-line ok";
+  }catch(e){
+    $("keyStatus").textContent = "このブラウザでは保存機能が使えませんでした。毎回貼り付けて使ってください。";
+    $("keyStatus").className = "status-line err";
+  }
+});
+$("toggleKey").addEventListener("click", () => {
+  const el = $("apiKey");
+  const btn = $("toggleKey");
+  if(el.type === "password"){ el.type = "text"; btn.textContent = "隠す"; }
+  else { el.type = "password"; btn.textContent = "表示"; }
+});
+loadSavedKey();
+
+// ---------- Places API (New) への直接リクエスト ----------
+// Maps JavaScript API は使わず、REST エンドポイントに直接アクセスする。
+// 必要なのは「Places API」「Places API (New)」の有効化のみ。
+async function fetchPlaceDetails(apiKey, placeId){
+  const fields = ["rating","userRatingCount","regularOpeningHours","currentOpeningHours","websiteUri","types"];
+  const url = `https://places.googleapis.com/v1/places/${placeId}`;
+  const res = await fetch(url, {
+    method: "GET",
+    headers: {
+      "X-Goog-Api-Key": apiKey,
+      "X-Goog-FieldMask": fields.join(",")
+    }
+  });
+  const body = await res.json();
+  if(!res.ok){
+    const msg = (body && body.error && body.error.message) ? body.error.message : `HTTPエラー ${res.status}`;
+    throw new Error(msg);
+  }
+  // Maps JS の Place クラスと同じプロパティ名に揃える
+  return {
+    rating: body.rating,
+    userRatingCount: body.userRatingCount,
+    regularOpeningHours: body.regularOpeningHours,
+    currentOpeningHours: body.currentOpeningHours,
+    websiteURI: body.websiteUri,
+    types: body.types
+  };
+}
+
+// ---------- 採点ロジック ----------
+function scoreStore(place){
+  const types = place.types || [];
+  const hasCategory = types.some(t => CATEGORY_OK.includes(t));
+  const p1 = hasCategory ? 5 : 0;
+
+  const hasHours = !!place.regularOpeningHours || !!place.currentOpeningHours;
+  const p5 = hasHours ? 5 : 0;
+
+  const hasWebsite = !!place.websiteURI;
+  const p6 = hasWebsite ? 5 : 0;
+
+  const count = place.userRatingCount || 0;
+  let r1;
+  if(count >= 30) r1 = 10;
+  else if(count >= 10) r1 = 6;
+  else r1 = 2;
+
+  const rating = place.rating || null;
+  const r2 = (rating !== null && rating >= 4.5) ? 5 : 0;
+
+  const flags = [];
+  if(!hasCategory) flags.push("カテゴリ要確認（laundry以外）");
+  if(!hasHours) flags.push("営業時間 未設定");
+  if(!hasWebsite) flags.push("公式サイトリンク 未設定");
+  if(count === 0) flags.push("口コミ 0件");
+  if(p5 === 5) flags.push("営業時間は目視で実態と一致するか要確認");
+
+  return { p1, p5, p6, r1, r2, rating, count, hasWebsite, hasHours, types, flags };
+}
+
+function ptBadge(val, max){
+  const cls = val === max ? "full" : (val === 0 ? "zero" : "mid");
+  return `<span class="pt ${cls}">${val}</span>`;
+}
+
+// ---------- 取得実行 ----------
+$("fetchBtn").addEventListener("click", async () => {
+  const key = $("apiKey").value.trim();
+  if(!key){
+    $("fetchStatus").textContent = "先にAPIキーを入力・保存してください。";
+    $("fetchStatus").className = "status-line err";
+    return;
+  }
+  $("fetchBtn").disabled = true;
+  $("fetchStatus").textContent = "Google Maps ライブラリを読み込み中…";
+  $("fetchStatus").className = "status-line";
+
+  try{
+    await loadGoogleMaps(key);
+  }catch(e){
+    $("fetchStatus").textContent = "読み込みに失敗しました。APIキーおよび Maps JavaScript API の有効化を確認してください。";
+    $("fetchStatus").className = "status-line err";
+    $("fetchBtn").disabled = false;
+    return;
+  }
+
+  const results = [];
+  for(let i = 0; i < STORES.length; i++){
+    const s = STORES[i];
+    $("fetchStatus").textContent = `取得中… (${i+1}/${STORES.length}) ${s.name}`;
+    try{
+      const place = new google.maps.places.Place({ id: s.placeId });
+      await place.fetchFields({
+        fields: ["displayName","rating","userRatingCount","regularOpeningHours","currentOpeningHours","websiteURI","types"]
+      });
+      const score = scoreStore(place);
+      results.push({ ...s, ok: true, ...score });
+    }catch(err){
+      results.push({ ...s, ok: false, error: err.message || String(err) });
+    }
+  }
+
+  renderResults(results);
+  $("fetchStatus").textContent = `完了：${results.filter(r=>r.ok).length}/${STORES.length} 店舗を取得しました。`;
+  $("fetchStatus").className = "status-line ok";
+  $("fetchBtn").disabled = false;
+});
+
+// ---------- 描画 ----------
+function renderResults(results){
+  $("emptyState").style.display = "none";
+  $("resultsCard").style.display = "block";
+  $("pasteCard").style.display = "block";
+
+  const body = $("resultsBody");
+  body.innerHTML = "";
+  results.forEach(r => {
+    const tr = document.createElement("tr");
+    if(!r.ok){
+      tr.innerHTML = `
+        <td class="store">${r.name}</td>
+        <td colspan="5" style="color:var(--bad);">取得エラー: ${r.error}</td>
+        <td></td>`;
+      body.appendChild(tr);
+      return;
+    }
+    tr.innerHTML = `
+      <td class="store">${r.name}</td>
+      <td class="num">${ptBadge(r.p1,5)}</td>
+      <td class="num">${ptBadge(r.p5,5)}</td>
+      <td class="num">${ptBadge(r.p6,5)}</td>
+      <td class="num">${ptBadge(r.r1,10)}<div class="raw">${r.count}件</div></td>
+      <td class="num">${ptBadge(r.r2,5)}<div class="raw">${r.rating ?? "—"}</div></td>
+      <td>${r.flags.map(f => `<span class="flag">${f}</span>`).join("")}</td>`;
+    body.appendChild(tr);
+  });
+
+  renderPasteGrid(results);
+}
+
+function renderPasteGrid(results){
+  const cols = [
+    { key: "p1", label: "H列", name: "P1 メインカテゴリ" },
+    { key: "p5", label: "L列", name: "P5 営業時間" },
+    { key: "p6", label: "M列", name: "P6 リンク設定" },
+    { key: "r1", label: "O列", name: "R1 口コミ件数" },
+    { key: "r2", label: "P列", name: "R2 平均星" },
+  ];
+  const grid = $("pasteGrid");
+  grid.innerHTML = "";
+  cols.forEach(col => {
+    const values = results.map(r => (r.ok ? r[col.key] : "")).join("\n");
+    const box = document.createElement("div");
+    box.className = "paste-col";
+    box.innerHTML = `
+      <div class="head">
+        <span class="label">${col.label}（行8〜18）</span>
+        <button class="btn-ghost btn-sm copy-btn" type="button">コピー</button>
+      </div>
+      <p class="sub">${col.name}</p>
+      <pre>${values}</pre>`;
+    box.querySelector(".copy-btn").addEventListener("click", async (ev) => {
+      await navigator.clipboard.writeText(values);
+      ev.target.textContent = "コピー済み";
+      setTimeout(() => ev.target.textContent = "コピー", 1500);
+    });
+    grid.appendChild(box);
+  });
+}
+</script>
+</body>
+</html>
