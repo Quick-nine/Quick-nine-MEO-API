@@ -312,33 +312,15 @@ $("toggleKey").addEventListener("click", () => {
 });
 loadSavedKey();
 
-// ---------- Places API (New) への直接リクエスト ----------
-// Maps JavaScript API は使わず、REST エンドポイントに直接アクセスする。
-// 必要なのは「Places API」「Places API (New)」の有効化のみ。
-async function fetchPlaceDetails(apiKey, placeId){
-  const fields = ["rating","userRatingCount","regularOpeningHours","currentOpeningHours","websiteUri","types"];
-  const url = `https://places.googleapis.com/v1/places/${placeId}`;
-  const res = await fetch(url, {
-    method: "GET",
-    headers: {
-      "X-Goog-Api-Key": apiKey,
-      "X-Goog-FieldMask": fields.join(",")
-    }
+// ---------- Google Maps JS の動的読み込み ----------
+let mapsLoadPromise = null;
+function loadGoogleMaps(apiKey){
+  if(mapsLoadPromise) return mapsLoadPromise;
+  mapsLoadPromise = new Promise((resolve, reject) => {
+    (g=>{var h,a,k,p="The Google Maps JavaScript API",c="google",l="importLibrary",q="__ib__",m=document,b=window;b=b[c]||(b[c]={});var d=b.maps||(b.maps={}),r=new Set,e=new URLSearchParams,u=()=>h||(h=new Promise(async(f,n)=>{await (a=m.createElement("script"));e.set("libraries",[...r]+"");for(k in g)e.set(k.replace(/[A-Z]/g,t=>"_"+t[0].toLowerCase()),g[k]);e.set("callback",c+".maps."+q);a.src=`https://maps.${c}apis.com/maps/api/js?`+e;d[q]=f;a.onerror=()=>h=n(Error(p+" could not load."));a.nonce=m.querySelector("script[nonce]")?.nonce||"";m.head.append(a)}));d[l]?console.warn(p+" only loads once. Ignoring:",g):d[l]=(f,...n)=>r.add(f)&&u().then(()=>d[l](f,...n))})({key: apiKey, v: "weekly"});
+    google.maps.importLibrary("places").then(() => resolve()).catch(reject);
   });
-  const body = await res.json();
-  if(!res.ok){
-    const msg = (body && body.error && body.error.message) ? body.error.message : `HTTPエラー ${res.status}`;
-    throw new Error(msg);
-  }
-  // Maps JS の Place クラスと同じプロパティ名に揃える
-  return {
-    rating: body.rating,
-    userRatingCount: body.userRatingCount,
-    regularOpeningHours: body.regularOpeningHours,
-    currentOpeningHours: body.currentOpeningHours,
-    websiteURI: body.websiteUri,
-    types: body.types
-  };
+  return mapsLoadPromise;
 }
 
 // ---------- 採点ロジック ----------
